@@ -16,11 +16,11 @@ const (
 )
 
 type EmailDeliveryPayload struct {
-	Username string
+	Email string
 }
 
-func NewEmailTask(username string) (*asynq.Task, error) {
-	payload, err := sonic.Marshal(EmailDeliveryPayload{Username: username})
+func NewEmailTask(email string) (*asynq.Task, error) {
+	payload, err := sonic.Marshal(EmailDeliveryPayload{Email: email})
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
 		return fmt.Errorf("sonic: %v : %w", err, asynq.SkipRetry)
 	}
 
-	slog.Info("Sending email to user", slog.String("username", p.Username))
+	slog.Info("Sending email to user", slog.String("email", p.Email))
 
 	m := mailer.NewMsg()
 
@@ -45,7 +45,7 @@ func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
 		return err
 	}
 
-	err = m.To("barry@flash.co")
+	err = m.To(p.Email)
 	if err != nil {
 		return err
 	}
