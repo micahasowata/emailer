@@ -5,7 +5,6 @@ go 1.21.5
 require (
 	github.com/bytedance/sonic v1.10.2
 	github.com/hibiken/asynq v0.24.1
-	github.com/joho/godotenv v1.5.1
 	github.com/wneessen/go-mail v0.4.0
 )
 

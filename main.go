@@ -1,16 +1,13 @@
 package main
 
 import (
-	"log/slog"
-
 	"context"
 	"fmt"
-
-	"os"
+	"log"
+	"log/slog"
 
 	"github.com/bytedance/sonic"
 	"github.com/hibiken/asynq"
-	"github.com/joho/godotenv"
 
 	mailer "github.com/wneessen/go-mail"
 )
@@ -43,39 +40,28 @@ func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
 	slog.Info("Sending email to user", slog.String("email", p.Email))
 
 	m := mailer.NewMsg()
-
-	err = m.From("toni@stark.com")
-	if err != nil {
+	if err := m.From("toni.sender@example.com"); err != nil {
 		return err
 	}
-
-	err = m.To(p.Email)
-	if err != nil {
+	if err := m.To(p.Email); err != nil {
 		return err
 	}
+	m.Subject("This is my first mail with go-mail!")
+	m.SetBodyString(mailer.TypeTextPlain, "Do you like this mail? I certainly do!")
+	m.SetBodyString(mailer.TypeTextHTML, "<p>Do you like this mail? I certainly do!</p>")
 
-	m.Subject("Hey babbbby, how's Asynq going")
-	m.SetBodyString(mailer.TypeTextPlain, "Yooo, from asynq we poppping boy")
-
-	c, err := mailer.NewClient(os.Getenv("HOST"), mailer.WithPort(465), mailer.WithSMTPAuth(mailer.SMTPAuthPlain), mailer.WithUsername(os.Getenv("USERNAME")), mailer.WithPassword(os.Getenv("PASSWORD")))
-
+	c, err := mailer.NewClient("sandbox.smtp.mailtrap.io", mailer.WithPort(25), mailer.WithSMTPAuth(mailer.SMTPAuthPlain),
+		mailer.WithUsername("6a88b61b95374d"), mailer.WithPassword("8eb315375d28f8"))
 	if err != nil {
-		return err
+		log.Fatalf("failed to create mail client: %s", err)
 	}
-
-	err = c.DialAndSend(m)
-	if err != nil {
-		return err
+	if err := c.DialAndSendWithContext(ctx, m); err != nil {
+		log.Fatalf("failed to send mail: %s", err)
 	}
-
 	return nil
 }
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		panic(err)
-	}
 
 	client := asynq.NewClient(asynq.RedisClientOpt{
 		Addr: "127.0.0.1:6379",
