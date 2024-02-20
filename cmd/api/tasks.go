@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
 
-	"github.com/bytedance/sonic"
 	"github.com/hibiken/asynq"
-
 	mailer "github.com/wneessen/go-mail"
 )
 
@@ -21,7 +20,7 @@ type EmailDeliveryPayload struct {
 }
 
 func NewEmailTask(email string) (*asynq.Task, error) {
-	payload, err := sonic.Marshal(EmailDeliveryPayload{Email: email})
+	payload, err := json.Marshal(EmailDeliveryPayload{Email: email})
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +31,7 @@ func NewEmailTask(email string) (*asynq.Task, error) {
 func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
 	var p EmailDeliveryPayload
 
-	err := sonic.Unmarshal(t.Payload(), &p)
+	err := json.Unmarshal(t.Payload(), &p)
 	if err != nil {
 		return fmt.Errorf("sonic: %v : %w", err, asynq.SkipRetry)
 	}
@@ -51,7 +50,7 @@ func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
 	m.SetBodyString(mailer.TypeTextHTML, "<p>Do you like this mail? I certainly do!</p>")
 
 	c, err := mailer.NewClient("sandbox.smtp.mailtrap.io", mailer.WithPort(25), mailer.WithSMTPAuth(mailer.SMTPAuthPlain),
-		mailer.WithUsername("6a88b61b95374d"), mailer.WithPassword("8eb315375d28f8"))
+		mailer.WithUsername("47203b77c8bab0"), mailer.WithPassword("32608c369c319e"))
 	if err != nil {
 		log.Fatalf("failed to create mail client: %s", err)
 	}
@@ -59,40 +58,4 @@ func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
 		log.Fatalf("failed to send mail: %s", err)
 	}
 	return nil
-}
-
-func main() {
-
-	client := asynq.NewClient(asynq.RedisClientOpt{
-		Addr: "127.0.0.1:6379",
-	})
-
-	task, err := NewEmailTask("barry@flash.com")
-	if err != nil {
-		slog.Error("task creation failed")
-		return
-	}
-
-	info, err := client.Enqueue(task)
-	if err != nil {
-		slog.Error("could not enqueue task")
-		return
-	}
-
-	slog.Info("starting task queue", slog.String("id", info.ID))
-
-	srv := asynq.NewServer(asynq.RedisClientOpt{
-		Addr: "127.0.0.1:6379",
-	}, asynq.Config{
-		Concurrency: 10,
-	})
-
-	mux := asynq.NewServeMux()
-	mux.HandleFunc(TypeEmailDelivery, HandleEmailDeliveryTask)
-
-	err = srv.Run(mux)
-	if err != nil {
-		slog.Error(err.Error())
-		return
-	}
 }
