@@ -19,6 +19,20 @@ type EmailDeliveryPayload struct {
 	Email string
 }
 
+func generateEmail(email string) (*mailer.Msg, error) {
+	m := mailer.NewMsg()
+	if err := m.From("toni.sender@example.com"); err != nil {
+		return nil, err
+	}
+	if err := m.To(email); err != nil {
+		return nil, err
+	}
+	m.Subject("This is my first mail with go-mail!")
+	m.SetBodyString(mailer.TypeTextPlain, "Do you like this mail? I certainly do!")
+	m.SetBodyString(mailer.TypeTextHTML, "<p>Do you like this email? You no go like am keh</p>")
+	return m, nil
+}
+
 func NewEmailTask(email string) (*asynq.Task, error) {
 	payload, err := json.Marshal(EmailDeliveryPayload{Email: email})
 	if err != nil {
@@ -38,16 +52,10 @@ func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
 
 	slog.Info("Sending email to user", slog.String("email", p.Email))
 
-	m := mailer.NewMsg()
-	if err := m.From("toni.sender@example.com"); err != nil {
+	m, err := generateEmail(p.Email)
+	if err != nil {
 		return err
 	}
-	if err := m.To(p.Email); err != nil {
-		return err
-	}
-	m.Subject("This is my first mail with go-mail!")
-	m.SetBodyString(mailer.TypeTextPlain, "Do you like this mail? I certainly do!")
-	m.SetBodyString(mailer.TypeTextHTML, "<p>Do you like this mail? I certainly do!</p>")
 
 	c, err := mailer.NewClient("sandbox.smtp.mailtrap.io", mailer.WithPort(25), mailer.WithSMTPAuth(mailer.SMTPAuthPlain),
 		mailer.WithUsername("47203b77c8bab0"), mailer.WithPassword("32608c369c319e"))
